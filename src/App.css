@@ -1,42 +1,181 @@
-#root {
-  max-width: 1280px;
+/* Container for the entire app */
+.container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  max-width: 2500px;
   margin: 0 auto;
-  padding: 2rem;
+  background-color: #2e3440; /* Dark background */
+  border-radius: 8px;
+  color: #eceff4; /* Light text */
+  align-self: center;
+}
+
+/* Title style */
+.title {
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
+/* Reusable card-like sections */
 .card {
-  padding: 2em;
+  border: 1px solid #4c566a;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background-color: #3b4252;
+  align-self: center;
 }
 
-.read-the-docs {
-  color: #888;
+/* Reusable bold label */
+.label-bold {
+  font-weight: bold;
+}
+
+/* Inputs (text, number, select) */
+.input {
+  display: block;
+  margin: 5px 0;
+  padding: 5px;
+  background-color: #4c566a;
+  border: 1px solid #d8dee9;
+  color: #eceff4;
+}
+
+/* General button style */
+.btn {
+  padding: 8px 12px;
+  background-color: #5e81ac; /* Blue */
+  color: #eceff4;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+/* Simple flex container for layout */
+.flex-container {
+  display: flex;
+  gap: 10px;
+}
+
+/* Section title style */
+.section-title {
+  margin-bottom: 10px;
+}
+
+/* Range slider for correlation inside a flex container */
+.slider {
+  flex: 2;
+}
+
+/* Remove correlation button */
+.remove-btn {
+  padding: 3px 8px;
+  background-color: #bf616a; /* Red */
+  color: #eceff4;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+/* Buttons specifically for generate and download */
+.btn-generate {
+  padding: 10px 15px;
+  background-color: #a3be8c; /* Green */
+  color: #2e3440;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-generate:hover {
+  opacity: 0.9;
+}
+
+.btn-download {
+  padding: 10px 15px;
+  background-color: #5e81ac; /* Blue */
+  color: #eceff4;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-download:hover {
+  opacity: 0.9;
+}
+
+/* Variable selection buttons (plotting, comparing, etc.) */
+.btn-var-selected {
+  margin: 5px;
+  padding: 10px;
+  background-color: #5e81ac; /* Blue when selected */
+  color: #eceff4;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-var-unselected {
+  margin: 5px;
+  padding: 10px;
+  background-color: #434c5e; /* Dark grey when unselected */
+  color: #eceff4;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Scatter plot button states */
+.scatter-btn-enabled {
+  display: block;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #a3be8c; /* Green */
+  color: #2e3440;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.scatter-btn-enabled:hover {
+  opacity: 0.9;
+}
+
+.scatter-btn-disabled {
+  display: block;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #434c5e;
+  color: #2e3440;
+  border: none;
+  border-radius: 4px;
+  cursor: not-allowed;
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+  background-color: #3b4252;
+  border-radius: 6px;
+}
+
+th,
+td {
+  padding: 8px;
+  border: 1px solid #4c566a;
+  color: #eceff4;
+}
+
+th {
+  font-weight: bold;
+  text-align: left;
+}
+
+thead tr {
+  background-color: #434c5e;
 }
