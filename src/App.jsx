@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { saveAs } from "file-saver";
 import Papa from "papaparse";
 import Plot from "react-plotly.js";
 import fs from "fs";
-import "./App.css"; // Import our new CSS file
+import "./App.css"; // Import our existing CSS file
 
 export default function RandomDataGenerator() {
   const [numRows, setNumRows] = useState(10);
@@ -15,11 +15,14 @@ export default function RandomDataGenerator() {
   const [showPlot, setShowPlot] = useState(false);
   const [correlations, setCorrelations] = useState([]);
 
+  const fileInputRef = useRef(null); // used to trigger hidden file input
+
   const variableTypes = ["Integer", "Float", "String", "Boolean"];
 
+  // ------------------------------ VARIABLE MANAGEMENT ------------------------------
   const addVariable = () => {
-    setVariables([
-      ...variables,
+    setVariables((prev) => [
+      ...prev,
       {
         name: "",
         type: "Integer",
@@ -44,10 +47,10 @@ export default function RandomDataGenerator() {
     setVariables(newVariables);
   };
 
-  // Add a correlation between two variables
+  // ------------------------------ CORRELATION MANAGEMENT ------------------------------
   const addCorrelation = () => {
-    setCorrelations([
-      ...correlations,
+    setCorrelations((prev) => [
+      ...prev,
       {
         var1: "",
         var2: "",
@@ -56,21 +59,20 @@ export default function RandomDataGenerator() {
     ]);
   };
 
-  // Update a correlation setting
   const updateCorrelation = (index, key, value) => {
     const newCorrelations = [...correlations];
     newCorrelations[index][key] = value;
     setCorrelations(newCorrelations);
   };
 
-  // Remove a correlation setting
   const removeCorrelation = (index) => {
     const newCorrelations = [...correlations];
     newCorrelations.splice(index, 1);
     setCorrelations(newCorrelations);
   };
 
-  // Function to generate correlated random values
+  // ------------------------------ RANDOM DATA GENERATION LOGIC ------------------------------
+  // Box-Muller-based approach for correlated data
   const generateCorrelatedPair = (
     mean1,
     mean2,
@@ -82,18 +84,16 @@ export default function RandomDataGenerator() {
     const independent1 = Array.from({ length }, () => Math.random());
     const independent2 = Array.from({ length }, () => Math.random());
 
-    // Box-Muller transform for normal distribution
-    const normal1 = independent1.map((r) =>
-      Math.sqrt(-2 * Math.log(r)) *
-      Math.cos(
-        2 * Math.PI * independent2[independent1.indexOf(r)]
-      )
+    // Box-Muller
+    const normal1 = independent1.map(
+      (r) =>
+        Math.sqrt(-2 * Math.log(r)) *
+        Math.cos(2 * Math.PI * independent2[independent1.indexOf(r)])
     );
-    const normal2 = independent1.map((r) =>
-      Math.sqrt(-2 * Math.log(r)) *
-      Math.sin(
-        2 * Math.PI * independent2[independent1.indexOf(r)]
-      )
+    const normal2 = independent1.map(
+      (r) =>
+        Math.sqrt(-2 * Math.log(r)) *
+        Math.sin(2 * Math.PI * independent2[independent1.indexOf(r)])
     );
 
     // Create correlated variable
@@ -108,41 +108,38 @@ export default function RandomDataGenerator() {
     return [scaled1, scaled2];
   };
 
-  // Adjust array to a target mean
   const adjustToTargetMean = (arr, targetMean) => {
     const currentMean = arr.reduce((sum, val) => sum + val, 0) / arr.length;
-    const adjustment = targetMean - currentMean;
-    return arr.map((val) => val + adjustment);
+    const diff = targetMean - currentMean;
+    return arr.map((val) => val + diff);
   };
 
-  // Adjust array to a target median
   const adjustToTargetMedian = (arr, targetMedian) => {
     const sorted = [...arr].sort((a, b) => a - b);
     const currentMedian =
       arr.length % 2 === 0
         ? (sorted[arr.length / 2 - 1] + sorted[arr.length / 2]) / 2
         : sorted[Math.floor(arr.length / 2)];
-
-    const adjustment = targetMedian - currentMedian;
-    return arr.map((val) => val + adjustment);
+    const diff = targetMedian - currentMedian;
+    return arr.map((val) => val + diff);
   };
 
   const generateData = () => {
-    // Identify all numeric variables
+    // Identify numeric variables
     const numericVars = variables
       .filter((v) => v.type === "Integer" || v.type === "Float")
       .map((v) => v.name);
 
-    // Build a correlation matrix for all numeric variables
+    // Build correlation matrix
     const correlationMatrix = {};
     numericVars.forEach((v1) => {
       correlationMatrix[v1] = {};
       numericVars.forEach((v2) => {
-        correlationMatrix[v1][v2] = v1 === v2 ? 1.0 : 0.0; // identity by default
+        correlationMatrix[v1][v2] = v1 === v2 ? 1.0 : 0.0;
       });
     });
 
-    // Fill in the correlation matrix with specified correlations
+    // Fill in correlation matrix
     for (const corr of correlations) {
       if (
         corr.var1 &&
@@ -151,16 +148,16 @@ export default function RandomDataGenerator() {
         numericVars.includes(corr.var2) &&
         corr.var1 !== corr.var2
       ) {
-        const corrValue = parseFloat(corr.value);
-        correlationMatrix[corr.var1][corr.var2] = corrValue;
-        correlationMatrix[corr.var2][corr.var1] = corrValue; // symmetrical
+        const cVal = parseFloat(corr.value);
+        correlationMatrix[corr.var1][corr.var2] = cVal;
+        correlationMatrix[corr.var2][corr.var1] = cVal;
       }
     }
 
-    // Prepare data array
+    // Prepare data
     let data = Array.from({ length: numRows }, () => ({}));
 
-    // Generate non-numeric variables
+    // Generate non-numeric columns first
     variables.forEach(({ name, type }) => {
       if (type === "String") {
         data.forEach((row) => {
@@ -173,20 +170,19 @@ export default function RandomDataGenerator() {
       }
     });
 
-    // Create standard normal variables for each numeric var
+    // Create standard normal arrays for numeric columns
     const standardNormals = {};
     numericVars.forEach((varName) => {
       standardNormals[varName] = Array.from({ length: numRows }, () => {
         const u1 = Math.random();
         const u2 = Math.random();
         return (
-          Math.sqrt(-2 * Math.log(u1)) *
-          Math.cos(2 * Math.PI * u2)
+          Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
         );
       });
     });
 
-    // Apply simplified correlation approach (pairwise) using the matrix
+    // Apply pairwise correlation
     for (const var1 of numericVars) {
       for (const var2 of numericVars) {
         if (var1 !== var2 && correlationMatrix[var1][var2] !== 0) {
@@ -199,7 +195,7 @@ export default function RandomDataGenerator() {
       }
     }
 
-    // Convert standard normal to range [min, max] for each numeric variable
+    // Convert standard normal -> [min, max] for each numeric var
     numericVars.forEach((varName) => {
       const varInfo = variables.find((v) => v.name === varName);
       const { min, max, type, targetMean, targetMedian, useConstraints } =
@@ -226,9 +222,10 @@ export default function RandomDataGenerator() {
         };
       }
 
-      // Convert standard normal to uniform [0,1] via CDF
       let values = standardNormals[varName].map((z) => {
+        // Normal -> uniform [0..1]
         const uniform = 0.5 * (1 + Math.erf(z / Math.sqrt(2)));
+        // Uniform -> [min..max]
         return min + (max - min) * uniform;
       });
 
@@ -250,7 +247,7 @@ export default function RandomDataGenerator() {
           : parseFloat(bounded.toFixed(2));
       });
 
-      // Assign
+      // Assign to data
       values.forEach((val, i) => {
         data[i][varName] = val;
       });
@@ -268,12 +265,98 @@ export default function RandomDataGenerator() {
     }
   };
 
+  // ------------------------------ CSV UPLOAD FEATURE ------------------------------
+  const handleFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data;
+        if (!rows || !rows.length) {
+          console.error("Empty or invalid CSV file.");
+          return;
+        }
+        // Infer columns (only numeric or boolean)
+        const colNames = Object.keys(rows[0]);
+        // We'll do quick type checks per column
+        const inferredVariables = colNames.map((colName) => {
+          // check type by sampling
+          const sample = rows.map((r) => r[colName]).slice(0, 50);
+          let isBoolean = true;
+          let isNumeric = true;
+
+          for (const val of sample) {
+            const lowerVal = String(val).toLowerCase().trim();
+            if (lowerVal !== "true" && lowerVal !== "false") {
+              isBoolean = false;
+            }
+            if (isNaN(Number(val))) {
+              isNumeric = false;
+            }
+          }
+
+          // Decide the type
+          let finalType = "String";
+          if (isBoolean) {
+            finalType = "Boolean";
+          } else if (isNumeric) {
+            finalType = "Float"; 
+          }
+          return {
+            name: colName,
+            type: finalType,
+            min: 0,
+            max: 100,
+            targetMean: null,
+            targetMedian: null,
+            useConstraints: false,
+          };
+        });
+
+        // Convert row data with type info
+        const finalData = rows.map((row) => {
+          const parsedRow = {};
+          inferredVariables.forEach((v) => {
+            const rawVal = row[v.name];
+            if (v.type === "Boolean") {
+              parsedRow[v.name] = String(rawVal).toLowerCase().trim() === "true";
+            } else if (v.type === "Float") {
+              parsedRow[v.name] = parseFloat(rawVal);
+            } else {
+              // string or unknown type
+              parsedRow[v.name] = rawVal;
+            }
+          });
+          return parsedRow;
+        });
+
+        setVariables(inferredVariables);
+        setGeneratedData(finalData);
+        setDataGenerated(true);
+      },
+      error: (err) => {
+        console.error("Error parsing CSV:", err);
+      },
+    });
+  };
+
+  // ------------------------------ CSV DOWNLOAD ------------------------------
   const downloadCSV = () => {
     const csv = Papa.unparse(generatedData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "generated_data.csv");
   };
 
+  // ------------------------------ PLOTTING & STATS ------------------------------
   const toggleCompareVariable = (varName) => {
     setCompareVars((prev) => {
       const updatedVars = prev.includes(varName)
@@ -289,45 +372,39 @@ export default function RandomDataGenerator() {
     if (compareVars.length === 2) setShowPlot(true);
   };
 
-  const computeStatistics = (data, type) => {
+  const computeStatistics = (colData, type) => {
     if (type === "Boolean") {
-      const trueCount = data.filter((val) => val).length;
-      const falseCount = data.length - trueCount;
+      const trueCount = colData.filter((val) => val).length;
+      const falseCount = colData.length - trueCount;
       return { trueCount, falseCount };
     }
-
     if (type === "Integer" || type === "Float") {
-      const sortedData = [...data].sort((a, b) => a - b);
-      const min = sortedData[0];
-      const max = sortedData[sortedData.length - 1];
+      const sorted = [...colData].sort((a, b) => a - b);
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
       const mean = (
-        data.reduce((sum, val) => sum + val, 0) / data.length
+        colData.reduce((sum, val) => sum + val, 0) / colData.length
       ).toFixed(2);
 
       const median =
-        data.length % 2 === 0
+        colData.length % 2 === 0
           ? (
-              (sortedData[data.length / 2 - 1] +
-                sortedData[data.length / 2]) /
+              (sorted[colData.length / 2 - 1] + sorted[colData.length / 2]) /
               2
             ).toFixed(2)
-          : sortedData[Math.floor(data.length / 2)];
-
+          : sorted[Math.floor(colData.length / 2)];
       return { min, max, mean, median };
     }
-
     return null;
   };
 
   const renderSingleVariablePlot = () => {
     if (!selectedVar) return null;
-    const data = generatedData.map((row) => row[selectedVar]);
+    const columnData = generatedData.map((row) => row[selectedVar]);
     const variableType = variables.find((v) => v.name === selectedVar)?.type;
+    if (!columnData.length) return null;
 
-    if (!data.length) return null;
-
-    const stats = computeStatistics(data, variableType);
-
+    const stats = computeStatistics(columnData, variableType);
     return (
       <div style={{ marginTop: "20px" }}>
         {variableType === "Boolean" ? (
@@ -364,7 +441,7 @@ export default function RandomDataGenerator() {
             <Plot
               data={[
                 {
-                  x: data,
+                  x: columnData,
                   type: "histogram",
                   marker: { color: "#5E81AC" },
                 },
@@ -397,10 +474,48 @@ export default function RandomDataGenerator() {
     );
   };
 
+  // ------------------------------ CORRELATION FOR PLOTTED VARS ------------------------------
+  const calculateCorrelation = (x, y) => {
+    const n = x.length;
+    const xMean = x.reduce((sum, val) => sum + val, 0) / n;
+    const yMean = y.reduce((sum, val) => sum + val, 0) / n;
+    let covariance = 0;
+    let xVariance = 0;
+    let yVariance = 0;
+
+    for (let i = 0; i < n; i++) {
+      const xDiff = x[i] - xMean;
+      const yDiff = y[i] - yMean;
+      covariance += xDiff * yDiff;
+      xVariance += xDiff * xDiff;
+      yVariance += yDiff * yDiff;
+    }
+    return covariance / (Math.sqrt(xVariance) * Math.sqrt(yVariance));
+  };
+
+  // ------------------------------ MAIN RENDER ------------------------------
   return (
     <div className="container">
       <h2 className="title">Random Data Generator</h2>
 
+      {/* Upload CSV Feature */}
+      <div className="card" style={{ marginBottom: "20px" }}>
+        <button onClick={handleFileUpload} className="btn" style={{ marginRight: "10px" }}>
+          Upload CSV
+        </button>
+        <input
+          type="file"
+          accept=".csv"
+          ref={fileInputRef}
+          onChange={onFileChange}
+          style={{ display: "none" }}
+        />
+        <span style={{ fontSize: "0.9rem" }}>
+          (Optional) Upload your own CSV with numeric/boolean columns
+        </span>
+      </div>
+
+      {/* Random Data Section */}
       <div className="card">
         <label className="label-bold">Number of Rows</label>
         <input
@@ -467,7 +582,10 @@ export default function RandomDataGenerator() {
               </div>
 
               <div style={{ marginTop: "10px" }}>
-                <label className="label-bold" style={{ display: "flex", cursor: "pointer" }}>
+                <label
+                  className="label-bold"
+                  style={{ display: "flex", cursor: "pointer" }}
+                >
                   <input
                     type="checkbox"
                     checked={variable.useConstraints}
@@ -522,15 +640,13 @@ export default function RandomDataGenerator() {
       {/* Correlation settings section */}
       <div className="card">
         <h3 className="section-title">Variable Correlations</h3>
-
         <button onClick={addCorrelation} className="btn" style={{ marginBottom: "10px" }}>
           Add Correlation
         </button>
-
-        {correlations.map((correlation, index) => (
+        {correlations.map((corr, index) => (
           <div key={index} className="flex-container" style={{ marginBottom: "10px" }}>
             <select
-              value={correlation.var1}
+              value={corr.var1}
               onChange={(e) => updateCorrelation(index, "var1", e.target.value)}
               className="input"
               style={{ flex: 1 }}
@@ -548,7 +664,7 @@ export default function RandomDataGenerator() {
             <span style={{ alignSelf: "center" }}>correlates with</span>
 
             <select
-              value={correlation.var2}
+              value={corr.var2}
               onChange={(e) => updateCorrelation(index, "var2", e.target.value)}
               className="input"
               style={{ flex: 1 }}
@@ -569,12 +685,12 @@ export default function RandomDataGenerator() {
                 min="-1"
                 max="1"
                 step="0.1"
-                value={correlation.value}
+                value={corr.value}
                 onChange={(e) => updateCorrelation(index, "value", e.target.value)}
                 className="slider"
               />
               <span style={{ width: "30px", textAlign: "center" }}>
-                {parseFloat(correlation.value).toFixed(1)}
+                {parseFloat(corr.value).toFixed(1)}
               </span>
             </div>
 
@@ -599,19 +715,18 @@ export default function RandomDataGenerator() {
           <h3>Select a Variable to Plot:</h3>
           <div style={{ marginBottom: "20px" }}>
             {variables.map((variable) => {
-              const selected = selectedVar === variable.name;
+              const isSelected = selectedVar === variable.name;
               return (
                 <button
                   key={variable.name}
                   onClick={() => setSelectedVar(variable.name)}
-                  className={selected ? "btn-var-selected" : "btn-var-unselected"}
+                  className={isSelected ? "btn-var-selected" : "btn-var-unselected"}
                 >
                   {variable.name}
                 </button>
               );
             })}
           </div>
-
           {renderSingleVariablePlot()}
 
           <h3>Select Two Numeric Variables to Compare:</h3>
@@ -619,19 +734,18 @@ export default function RandomDataGenerator() {
             {variables
               .filter((v) => v.type === "Integer" || v.type === "Float")
               .map((variable) => {
-                const selected = compareVars.includes(variable.name);
+                const isSelected = compareVars.includes(variable.name);
                 return (
                   <button
                     key={variable.name}
                     onClick={() => toggleCompareVariable(variable.name)}
-                    className={selected ? "btn-var-selected" : "btn-var-unselected"}
+                    className={isSelected ? "btn-var-selected" : "btn-var-unselected"}
                   >
                     {variable.name}
                   </button>
                 );
               })}
           </div>
-
           <button
             onClick={handlePlot}
             disabled={compareVars.length !== 2}
@@ -691,9 +805,7 @@ export default function RandomDataGenerator() {
                   {generatedData.slice(0, 50).map((row, rowIndex) => (
                     <tr key={rowIndex}>
                       {variables.map((variable) => (
-                        <td key={variable.name}>
-                          {row[variable.name]}
-                        </td>
+                        <td key={variable.name}>{row[variable.name]}</td>
                       ))}
                     </tr>
                   ))}
@@ -705,29 +817,4 @@ export default function RandomDataGenerator() {
       )}
     </div>
   );
-}
-
-// Utility function to calculate the actual correlation between two arrays
-function calculateCorrelation(x, y) {
-  const n = x.length;
-
-  // Calculate means
-  const xMean = x.reduce((sum, val) => sum + val, 0) / n;
-  const yMean = y.reduce((sum, val) => sum + val, 0) / n;
-
-  // Calculate covariance and variances
-  let covariance = 0;
-  let xVariance = 0;
-  let yVariance = 0;
-
-  for (let i = 0; i < n; i++) {
-    const xDiff = x[i] - xMean;
-    const yDiff = y[i] - yMean;
-    covariance += xDiff * yDiff;
-    xVariance += xDiff * xDiff;
-    yVariance += yDiff * yDiff;
-  }
-
-  // Pearson correlation coefficient
-  return covariance / (Math.sqrt(xVariance) * Math.sqrt(yVariance));
 }
